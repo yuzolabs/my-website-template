@@ -26,8 +26,6 @@ AI エージェント向けの作業手順と、Cloudflare Pages の staging 環
 - [Cloudflare Pages](.agents/skills/cloudflare-pages/SKILL.md): Cloudflare の構成と Wrangler の扱い。
 - [Staging deployment](.agents/skills/staging-deployment/SKILL.md): staging への安全な公開と検証。
 
-採用元とライセンス上の扱いは [Skills の出典](docs/skill-sources.md) に記載します。
-
 ## Cloudflare staging
 
 公開には **本番と別の** Cloudflare Pages Direct Upload プロジェクトと、GitHub の `staging` Environment が必要です。必要な Environment variables は `CLOUDFLARE_PAGES_PROJECT_STAGING`、`CLOUDFLARE_PAGES_PROJECT_PRODUCTION`、`STAGING_URL`、Environment secrets は `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID` です。トークンはこのリポジトリへ保存しません。
