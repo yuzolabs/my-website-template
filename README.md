@@ -22,6 +22,7 @@ AI エージェント向けの作業手順と、Cloudflare Pages の staging 環
 
 `AGENTS.md` がリポジトリの基本方針です。用途に応じて次の Agent Skills を参照できます。
 
+- [Frontend design](.agents/skills/frontend-design/SKILL.md): サイトの内容に合わせた画面デザインと文章の設計。
 - [PR description](.agents/skills/pr-description/SKILL.md): 差分から日本語の PR タイトル・本文を作成。
 - [Cloudflare Pages](.agents/skills/cloudflare-pages/SKILL.md): Cloudflare の構成と Wrangler の扱い。
 - [Staging deployment](.agents/skills/staging-deployment/SKILL.md): staging への安全な公開と検証。
