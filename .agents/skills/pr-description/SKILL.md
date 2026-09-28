@@ -42,7 +42,7 @@ If `.github/copilot-pull-request-instructions.md` exists, read and follow it. Ot
 Write `pr.md` in the project root, using the actual diff and the selected template:
 
 ```markdown
-<!-- PRタイトル -->
+# PRタイトル
 ## 概要
 <!-- このPRの背景・目的・概要 -->
 
@@ -53,24 +53,24 @@ Write `pr.md` in the project root, using the actual diff and the selected templa
 <!-- レビュワーへの情報、残しておきたいメモ、参考リンク -->
 ```
 
-- The **first line** must be a concise PR title in Japanese.
+- The **first line** must be a concise H1 PR title in Japanese.
 - **概要** explains why the change is needed.
 - **変更内容** describes what changed.
 - **補足** records relevant verification, decisions, or caveats.
 
 ### Step 5: Validate pr.md
 
-Run the same Markdown lint used by the source skill:
+Run Markdown lint, then fix any reported issue before using the file:
 
 ```bash
-bunx markdownlint-cli2 --fix "pr.md"
+bunx markdownlint-cli2 "pr.md"
 ```
 
-Review the generated Japanese title and body after automatic fixes.
+Review the Japanese title and body after lint passes.
 
 ## Rules
 
 - Output language: **Japanese** for the PR title, headings, and body. Keep code identifiers and machine-consumed tokens in their original form.
 - Do not paste raw git diffs or unrelated code into `pr.md`.
-- Keep the PR title on the first line, not inside a heading.
+- Keep the PR title as the first-line H1, before the body sections.
 - If `.github/copilot-pull-request-instructions.md` does not exist, use the structure above.
