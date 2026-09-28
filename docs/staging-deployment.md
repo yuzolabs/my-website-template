@@ -4,7 +4,15 @@ staging は本番と別の Pages プロジェクトへ静的ファイルを Dire
 
 ## 初回設定
 
-1. Cloudflare で本番用と staging 用の Pages プロジェクトを別々に作成します。staging は **Direct Upload** を選び、Production branch を `main` にします。例: `bunx --package wrangler@4.135.0 wrangler pages project create <新しいサイト名>-staging --production-branch=main`。これは外部リソースを作成する操作なので、管理者の端末で認証して実行してください。
+1. Cloudflare で本番用と staging 用の Pages プロジェクトを別々に作成します。
+   staging は **Direct Upload** を選び、Production branch を `main` にします。
+   作成コマンドの例です。
+
+   ```bash
+   bunx --package wrangler@4.135.0 wrangler pages project create <新しいサイト名>-staging --production-branch=main
+   ```
+
+   外部リソースを作成する操作なので、管理者の端末で認証して実行してください。
 2. staging の Pages プロジェクト名と固定 URL を確認します。URL は `https://<staging のプロジェクト名>.pages.dev` の形式を使います。名前が使用済みなら別名でプロジェクトを作成してください。
 3. 対象 Cloudflare アカウントの Pages に書き込みできる API トークンを発行します。アカウントを限定した Pages Write 権限を選びます。Workers 用トークンや個人のログイン状態を CI で使わないでください。
 4. GitHub Settings → Environments に `staging` を作成し、Deployment branches and tags で `main` のみ許可します。必要な場合は承認ルールを追加します。
@@ -29,7 +37,10 @@ bun run build
 bun run check:staging
 ```
 
-通常の `bun run build` には staging 用の `_headers` と `deployment.json` は含まれません。`bun run check:staging` は再ビルドして staging 用ファイルを追加し、実際の `wrangler pages dev dist` で `index.html`、コミット情報、`noindex` ヘッダーを確認します。起動したローカルサーバーは検査後に終了します。
+通常の `bun run build` には staging 用の `_headers` と `deployment.json` は含まれません。
+`bun run check:staging` は再ビルドして staging 用ファイルを追加します。
+実際の `wrangler pages dev dist` で `index.html`、コミット情報、`noindex` ヘッダーを確認します。
+起動したローカルサーバーは検査後に終了します。
 
 ## 手動公開
 
