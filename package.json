@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "2.0.0-beta.sha-805ec1ff3",
-    "@types/node": "22.20.5",
+    "@types/node": "26.6.2",
     "cf": "1.0.0-beta.12",
     "textlint": "^15.3.0",
     "textlint-rule-preset-ja-technical-writing": "^12.0.2",
