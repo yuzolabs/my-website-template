@@ -1,5 +1,6 @@
 dist
 node_modules
+.cloudflare
 .wrangler
 
 # Local secrets. Example templates stay tracked.
