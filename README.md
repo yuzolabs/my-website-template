@@ -75,16 +75,18 @@ Vite の `publicDir` に `dist` を設定しており、`cf build` を通じて 
 
 `.gitattributes` ではテキストを `text=auto eol=lf`、Windows コマンドスクリプト（`.cmd`、`.bat`）を `crlf` に指定しています。
 なお、`no-commit-to-branch` フックはローカル環境向けであり、GitHub 側のブランチ保護ではありません。
-必須チェックには Quality checks、Gitleaks、Semgrep、zizmor を推奨します。ブランチ保護の設定は、リポジトリ管理者が別途 GitHub 上で行います。
+必須チェックには Quality checks、Workers smoke test、Gitleaks、Semgrep、zizmor を推奨します。ブランチ保護の設定は、リポジトリ管理者が別途 GitHub 上で行います。
 自動マージや GitHub 側の保護設定は本テンプレートに含まれていません。
 
 ## CI と依存関係の更新
 
 `.github/workflows/ci.yml` は、`main` 宛 PR や `main` push、手動実行を契機に動作します。
-旧来の Security checks（prek-action）を廃止します。Quality checks、Gitleaks、Semgrep、zizmor の 4 つの独立ジョブを実行します。
+旧来の Security checks（prek-action）を廃止し、スモークテストを独立ジョブへ分離します。Quality checks、Workers smoke test、Gitleaks、Semgrep、zizmor の 5 つの独立ジョブを実行します。
+Quality checks と Workers smoke test は独立して並列に実行されます。
 CI は追加のリポジトリ secrets や GitHub Environment を必要としません。GitHub が自動発行するトークンを利用し、Cloudflare の認証情報は使用しません。
 
-- Quality checks: `bun install --frozen-lockfile` を実行します。続けて `typecheck`、`lint:docs`、`test`、`build`、`check:staging` を実行します。ローカル Workers 環境での検証のみであり、リモートへの公開は行いません。権限は `contents: read` のみです。
+- Quality checks: `bun install --frozen-lockfile` を実行します。続けて `typecheck`、`lint:docs`、`test`、`build` を実行します。権限は `contents: read` のみです。
+- Workers smoke test: Node 22.18.0 と Bun 1.3.6 の環境で動作します。`bun install --frozen-lockfile` と `bun run check:staging` を実行します。Quality checks とは独立して並列に動作します。権限は `contents: read` のみで secrets は不要であり、ローカル Workers 環境での検証のみを行います。起動判定は Vite のログ文字列ではなく、ループバック HTTP 応答で行います。起動、各リクエスト、終了待機のそれぞれにタイムアウトを設定します。失敗時には末尾の標準出力・標準エラー出力の診断ログを含めます。HTTP 200 応答、メインコンテンツ、`noindex`、`deployment.json` のコミット、存在しないパスの 404 応答の検証を維持します。
 - Gitleaks: `gitleaks/gitleaks-action` v3 を使用します。`actions/checkout` で `fetch-depth: 0` を指定します。PR 実行時は Action が判定したコミット範囲などを検査します。自動発行の `github.token` を利用し、権限は `contents: read` と `pull-requests: read` を付与します。PR コメントや成果物のアップロードは無効化しています。個人所有（本リポジトリの `owner.type` は `User` と確認済み）ではライセンス不要です。Organization で再利用する場合は、公式 README に基づき別途 `GITLEAKS_LICENSE` の設定が必要です。
 - Semgrep: 公式の `1.177.0` コンテナ（digest 固定）で `semgrep scan --config=auto --error` を実行します。権限は `contents: read` のみです。
 - zizmor: 公式 Action で zizmor `1.30.1` を実行します。`pedantic`、`annotations: true`、`advanced-security: false` を指定します。権限は `contents: read` および `actions: read` を付与し、オンライン監査を有効化しています。

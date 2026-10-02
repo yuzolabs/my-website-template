@@ -34,7 +34,7 @@ test('PR CI runs on main without deployment credentials or write permissions', (
   }
 });
 
-test('quality CI checks locked dependencies, code, docs, build and local HTTP', () => {
+test('quality CI checks locked dependencies, code, docs and build independently of Workers', () => {
   const commands = ci.jobs.quality.steps.flatMap((step) => step.run ? [step.run] : []);
   for (const command of [
     'bun install --frozen-lockfile',
@@ -42,9 +42,24 @@ test('quality CI checks locked dependencies, code, docs, build and local HTTP', 
     'bun run lint:docs',
     'bun run test',
     'bun run build',
-    'bun run check:staging',
   ]) {
     expect(commands).toContain(command);
+  }
+  expect(commands).not.toContain('bun run check:staging');
+  expect(ci.jobs.quality).not.toHaveProperty('needs');
+});
+
+test('Workers smoke test is a separate local-only job with matching runtimes', () => {
+  const smoke = ci.jobs['workers-smoke'];
+  expect(smoke.name).toBe('Workers smoke test');
+  expect(smoke).not.toHaveProperty('needs');
+  expect(smoke.permissions).toEqual({ contents: 'read' });
+  expect(smoke.steps.filter((step) => step.run).map((step) => step.run))
+    .toEqual(['bun install --frozen-lockfile', 'bun run check:staging']);
+  for (const action of ['actions/setup-node@', 'oven-sh/setup-bun@']) {
+    const qualitySetup = ci.jobs.quality.steps.find((step) => step.uses?.startsWith(action));
+    const smokeSetup = smoke.steps.find((step) => step.uses?.startsWith(action));
+    expect(smokeSetup).toEqual(qualitySetup);
   }
 });
 
