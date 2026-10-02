@@ -72,6 +72,7 @@ Vite の `publicDir` に `dist` を設定しており、`cf build` を通じて 
 ただし Gitleaks 公式 hook はステージ済み差分を検査するため、全履歴の検査にはなりません。
 本設定はローカル hook の追加のみであり、CI スキャンは未導入です。
 
+`.gitattributes` ではテキストを `text=auto eol=lf`、Windows コマンドスクリプト（`.cmd`、`.bat`）を `crlf` に指定しています。
 なお、`no-commit-to-branch` フックはローカル環境向けであり、GitHub 側のブランチ保護ではありません。
 自動マージや GitHub 側の保護設定は本テンプレートに含まれていません。
 

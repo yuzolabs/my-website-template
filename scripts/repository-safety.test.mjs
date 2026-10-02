@@ -36,3 +36,10 @@ test('hook revisions are pinned and annotated for release-based Dependabot updat
     expect(revision).toMatch(/# frozen: v\d+\.\d+\.\d+$/);
   }
 });
+
+test('text defaults to LF with Windows command script exceptions', () => {
+  const attributes = readRepositoryFile('.gitattributes').trim().split('\n');
+  expect(attributes).toContain('* text=auto eol=lf');
+  expect(attributes).toContain('*.cmd text eol=crlf');
+  expect(attributes).toContain('*.bat text eol=crlf');
+});
