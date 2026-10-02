@@ -20,24 +20,25 @@ jobs:
       name: staging
       url: ${{ vars.STAGING_URL }}
     env:
-      CLOUDFLARE_PAGES_PROJECT_STAGING: ${{ vars.CLOUDFLARE_PAGES_PROJECT_STAGING }}
-      CLOUDFLARE_PAGES_PROJECT_PRODUCTION: ${{ vars.CLOUDFLARE_PAGES_PROJECT_PRODUCTION }}
+      CLOUDFLARE_WORKER_STAGING: ${{ vars.CLOUDFLARE_WORKER_STAGING }}
+      CLOUDFLARE_WORKER_PRODUCTION: ${{ vars.CLOUDFLARE_WORKER_PRODUCTION }}
+      CLOUDFLARE_WORKERS_SUBDOMAIN: ${{ vars.CLOUDFLARE_WORKERS_SUBDOMAIN }}
       STAGING_URL: ${{ vars.STAGING_URL }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.18.0'
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.6
-      - name: Confirm separate Pages projects and fixed staging URL
-        shell: bash
-        run: |
-          : "${CLOUDFLARE_PAGES_PROJECT_STAGING:?Set the staging Environment variable}"
-          : "${CLOUDFLARE_PAGES_PROJECT_PRODUCTION:?Set the staging Environment variable}"
-          : "${STAGING_URL:?Set the staging Environment variable}"
-          test "$CLOUDFLARE_PAGES_PROJECT_STAGING" != "$CLOUDFLARE_PAGES_PROJECT_PRODUCTION"
-          test "$STAGING_URL" = "https://${CLOUDFLARE_PAGES_PROJECT_STAGING}.pages.dev"
+      - name: Confirm separate Workers and fixed staging URL
+        run: node --input-type=module -e 'import { getStagingTarget } from "./scripts/staging-target.mjs"; getStagingTarget();'
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint:docs
       - run: bun run test
       - run: bun run check:staging
         env:
@@ -50,10 +51,7 @@ jobs:
         run: |
           : "${CLOUDFLARE_API_TOKEN:?Set the staging Environment secret}"
           : "${CLOUDFLARE_ACCOUNT_ID:?Set the staging Environment secret}"
-          bunx --package wrangler@4.135.0 wrangler pages deploy dist \
-            --project-name="$CLOUDFLARE_PAGES_PROJECT_STAGING" \
-            --branch=main \
-            --commit-hash="$GITHUB_SHA"
+          bun run deploy:staging
       - name: Verify deployed site and build commit
         shell: bash
         run: |

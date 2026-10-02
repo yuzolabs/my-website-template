@@ -1,6 +1,13 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer } from 'node:net';
+import { getStagingTarget } from './staging-target.mjs';
+
+const hasRemoteTarget = ['CLOUDFLARE_WORKER_STAGING', 'CLOUDFLARE_WORKER_PRODUCTION', 'CLOUDFLARE_WORKERS_SUBDOMAIN', 'STAGING_URL']
+  .some((key) => process.env[key] !== undefined);
+if (hasRemoteTarget) getStagingTarget();
+const mode = hasRemoteTarget ? 'staging' : 'development';
+execFileSync('node', ['node_modules/.bin/cf', 'build', '--mode', mode], { stdio: 'inherit' });
 
 const listener = createServer();
 listener.listen(0, '127.0.0.1');
@@ -11,19 +18,19 @@ listener.close();
 await listenerClosed;
 
 const server = spawn(
-  'bunx',
-  ['--package', 'wrangler@4.135.0', 'wrangler', 'pages', 'dev', 'dist', '--ip', '127.0.0.1', '--port', String(port)],
+  'node',
+  ['node_modules/.bin/vite', 'preview', '--mode', mode, '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
   { detached: true, stdio: ['ignore', 'pipe', 'pipe'] },
 );
 const stopped = new Promise((resolve) => server.once('close', resolve));
 
 try {
   await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('Pages local runtime did not become ready')), 60_000);
+    const timeout = setTimeout(() => reject(new Error('Workers local runtime did not become ready')), 60_000);
     let output = '';
     const receive = (chunk) => {
       output += chunk.toString();
-      if (/Ready on http:\/\/127\.0\.0\.1:/.test(output)) {
+      if (output.includes(`http://127.0.0.1:${port}`)) {
         clearTimeout(timeout);
         resolve();
       }
@@ -33,7 +40,7 @@ try {
     server.once('error', (error) => { clearTimeout(timeout); reject(error); });
     server.once('exit', (code) => {
       clearTimeout(timeout);
-      reject(new Error(`Pages local runtime exited ${code}: ${output}`));
+      reject(new Error(`Workers local runtime exited ${code}: ${output}`));
     });
   });
 
@@ -46,10 +53,14 @@ try {
   const metadata = await fetch(`${origin}/deployment.json`);
   const deployment = await metadata.json();
   const commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-  if (metadata.status !== 200 || deployment.commit !== commit) {
+  if (metadata.status !== 200 || deployment.commit !== commit || !metadata.headers.get('x-robots-tag')?.includes('noindex')) {
     throw new Error('Staging deployment metadata does not match this build');
   }
-  console.log(`PASS Pages local HTTP 200; X-Robots-Tag: ${page.headers.get('x-robots-tag')}; commit: ${deployment.commit}`);
+  const missing = await fetch(`${origin}/__staging_missing_page__`);
+  if (missing.status !== 404) {
+    throw new Error(`Workers static assets must return 404 for missing pages, received ${missing.status}`);
+  }
+  console.log(`PASS Workers local HTTP 200 and missing-page 404; X-Robots-Tag: ${page.headers.get('x-robots-tag')}; commit: ${deployment.commit}`);
 } finally {
   if (server.pid && server.exitCode === null) {
     process.kill(-server.pid, 'SIGTERM');
