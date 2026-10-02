@@ -60,7 +60,16 @@ Vite の `publicDir` に `dist` を設定しており、`cf build` を通じて 
 
 `bun run lint:docs` は README、AGENTS.md、`docs/` の日本語 Markdown を textlint で検査します。英語の Skills とサイトの HTML は対象外です。
 
-[prek](https://github.com/j178/prek) をインストールした後、`prek install` で Git フックを設定します。コミット前に YAML・JSON・行末・末尾改行・秘密鍵を検査します。リポジトリ全体を手動で確認するには `prek run --all-files` を実行してください。
+[prek](https://github.com/j178/prek) をインストールした後、`prek install` で Git フックを設定します。
+
+コミット前に YAML・JSON・行末・末尾改行・秘密鍵を検査します。
+さらに Gitleaks（シークレット検出）、Semgrep（SAST）、zizmor（GitHub Actions 等の静的解析）を実行します。
+各ツールは初回の hook 環境構築で取得され、Semgrep の auto ルール取得にはネットワーク接続が必要です。
+また、zizmor はデフォルトでオフライン実行されるため、一部の監査項目は対象外です。
+
+手動でファイル全体を確認するには `prek run --all-files` を実行してください。
+ただし Gitleaks 公式 hook はステージ済み差分を検査するため、全履歴の検査にはなりません。
+本設定はローカル hook の追加のみであり、CI スキャンは未導入です。
 
 ## Cloudflare staging
 
