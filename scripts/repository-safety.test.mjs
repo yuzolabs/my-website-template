@@ -12,7 +12,27 @@ test('main branch guard applies to commits but not CI history scans', () => {
   expect(guard.stages).toEqual(['pre-commit']);
 });
 
-test('new dependency versions require a seven-day release age', () => {
+test('dependency updates cover the three ecosystems with a seven-day cooldown', () => {
+  const dependabot = Bun.YAML.parse(readRepositoryFile('.github/dependabot.yml'));
+  expect(dependabot.version).toBe(2);
+  expect(dependabot.updates.map((update) => update['package-ecosystem']).sort())
+    .toEqual(['bun', 'github-actions', 'pre-commit']);
+  for (const update of dependabot.updates) {
+    expect(update.directory).toBe('/');
+    expect(update.schedule.interval).toBe('weekly');
+    expect(update.cooldown['default-days']).toBe(7);
+  }
   const bunfig = Bun.TOML.parse(readRepositoryFile('bunfig.toml'));
   expect(bunfig.install.minimumReleaseAge).toBe(7 * 24 * 60 * 60);
+});
+
+test('hook revisions are pinned and annotated for release-based Dependabot updates', () => {
+  for (const repo of prek.repos) {
+    expect(repo.rev).toMatch(/^[a-f0-9]{40}$/);
+  }
+  const revisions = readRepositoryFile('.pre-commit-config.yaml')
+    .split('\n').filter((line) => line.trim().startsWith('rev:'));
+  for (const revision of revisions) {
+    expect(revision).toMatch(/# frozen: v\d+\.\d+\.\d+$/);
+  }
 });

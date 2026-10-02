@@ -77,8 +77,9 @@ Vite の `publicDir` に `dist` を設定しており、`cf build` を通じて 
 
 ## 依存関係の更新
 
-依存関係の更新には Bun の遅延設定を利用します。
+依存関係の更新には Dependabot と Bun の遅延設定を利用します。
 
+- Dependabot: `.github/dependabot.yml` で `bun`、`github-actions`、`pre-commit` の 3 つのエコシステムを対象に週次で更新を確認します。7 日間のクールダウン（`default-days: 7`）を設定しています。`.pre-commit-config.yaml` の `# frozen: vX.Y.Z` コメントは公式ドキュメントに従いリリースタグ対応を指定したものです。
 - Bun: `bunfig.toml` で `minimumReleaseAge = 604800`（7日）を設定しています。これは新しいバージョン解決時のフィルターであり、既存の `bun.lock` を再審査するものではありません。詳細は [Bun 公式ドキュメント](https://bun.sh/docs/pm/cli/install) を参照してください。
 
 ## Cloudflare staging
