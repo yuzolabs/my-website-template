@@ -60,7 +60,41 @@ Vite の `publicDir` に `dist` を設定しており、`cf build` を通じて 
 
 `bun run lint:docs` は README、AGENTS.md、`docs/` の日本語 Markdown を textlint で検査します。英語の Skills とサイトの HTML は対象外です。
 
-[prek](https://github.com/j178/prek) をインストールした後、`prek install` で Git フックを設定します。コミット前に YAML・JSON・行末・末尾改行・秘密鍵を検査します。リポジトリ全体を手動で確認するには `prek run --all-files` を実行してください。
+[prek](https://github.com/j178/prek) をインストールした後、`prek install` で Git フックを設定します。
+
+コミット前に YAML、JSON、TOML、行末空白、末尾改行、秘密鍵を検査します。
+`no-commit-to-branch` により、pre-commit 時に `main` ブランチへの直接コミットを禁止します（CI や manual 段階では対象外です）。
+さらに Gitleaks（シークレット検出）、Semgrep（SAST）、zizmor（GitHub Actions 等の静的解析）を実行します。
+通常のコミット前フックにおける Gitleaks はステージ済み差分を検査します。
+各ツールは初回の hook 環境構築で取得され、Semgrep の auto ルール取得にはネットワーク接続が必要です。
+また、zizmor はデフォルトでオフライン実行されるため、一部の監査項目は対象外です。
+
+手動でファイル全体を確認するには `prek run --all-files` を実行してください。
+ローカルの全履歴を検査する場合は `prek run --all-files --hook-stage manual` を実行します。これは CI の再現コマンドではなく、ローカル全履歴の検査です。
+新設した `gitleaks-history` エイリアス（`gitleaks git --redact --log-opts=--all`）は、ローカルに取得済みの全 ref 履歴に限って検査します。
+
+`.gitattributes` ではテキストを `text=auto eol=lf`、Windows コマンドスクリプト（`.cmd`、`.bat`）を `crlf` に指定しています。
+なお、`no-commit-to-branch` フックはローカル環境向けであり、GitHub 側のブランチ保護ではありません。
+必須チェックには Quality checks、Workers smoke test、Gitleaks、Semgrep、zizmor を推奨します。ブランチ保護の設定は、リポジトリ管理者が別途 GitHub 上で行います。
+自動マージや GitHub 側の保護設定は本テンプレートに含まれていません。
+
+## CI と依存関係の更新
+
+`.github/workflows/ci.yml` は、`main` 宛 PR や `main` push、手動実行を契機に動作します。
+旧来の Security checks（prek-action）を廃止し、スモークテストを独立ジョブへ分離します。Quality checks、Workers smoke test、Gitleaks、Semgrep、zizmor の 5 つの独立ジョブを実行します。
+Quality checks と Workers smoke test は独立して並列に実行されます。
+CI は追加のリポジトリ secrets や GitHub Environment を必要としません。GitHub が自動発行するトークンを利用し、Cloudflare の認証情報は使用しません。
+
+- Quality checks: `bun install --frozen-lockfile` を実行します。続けて `typecheck`、`lint:docs`、`test`、`build` を実行します。権限は `contents: read` のみです。
+- Workers smoke test: Node 22.18.0 と Bun 1.3.6 の環境で動作します。`bun install --frozen-lockfile` と `bun run check:staging` を実行します。Quality checks とは独立して並列に動作します。権限は `contents: read` のみで secrets は不要であり、ローカル Workers 環境での検証のみを行います。起動判定は Vite のログ文字列ではなく、ループバック HTTP 応答で行います。起動、各リクエスト、終了待機のそれぞれにタイムアウトを設定します。失敗時には末尾の標準出力・標準エラー出力の診断ログを含めます。HTTP 200 応答、メインコンテンツ、`noindex`、`deployment.json` のコミット、存在しないパスの 404 応答の検証を維持します。
+- Gitleaks: `gitleaks/gitleaks-action` v3 を使用します。`actions/checkout` で `fetch-depth: 0` を指定します。PR 実行時は Action が判定したコミット範囲などを検査します。自動発行の `github.token` を利用し、権限は `contents: read` と `pull-requests: read` を付与します。PR コメントや成果物のアップロードは無効化しています。個人所有（本リポジトリの `owner.type` は `User` と確認済み）ではライセンス不要です。Organization で再利用する場合は、公式 README に基づき別途 `GITLEAKS_LICENSE` の設定が必要です。
+- Semgrep: 公式の `1.177.0` コンテナ（digest 固定）で `semgrep scan --config=auto --error` を実行します。権限は `contents: read` のみです。
+- zizmor: 公式 Action で zizmor `1.30.1` を実行します。`pedantic`、`annotations: true`、`advanced-security: false` を指定します。権限は `contents: read` および `actions: read` を付与し、オンライン監査を有効化しています。
+
+依存関係の更新には Dependabot と Bun の遅延設定を利用します。
+
+- Dependabot: `.github/dependabot.yml` で `bun`、`github-actions`、`pre-commit` の 3 つのエコシステムを対象に週次で更新を確認します。7 日間のクールダウン（`default-days: 7`）を設定しています。`.pre-commit-config.yaml` の `# frozen: vX.Y.Z` コメントは公式ドキュメントに従いリリースタグ対応を指定したものです。
+- Bun: `bunfig.toml` で `minimumReleaseAge = 604800`（7日）を設定しています。これは新しいバージョン解決時のフィルターであり、既存の `bun.lock` を再審査するものではありません。詳細は [Bun 公式ドキュメント](https://bun.sh/docs/pm/cli/install) を参照してください。
 
 ## Cloudflare staging
 
