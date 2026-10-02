@@ -21,7 +21,8 @@ test('PR CI runs on main without deployment credentials or write permissions', (
   for (const job of Object.values(ci.jobs)) {
     expect(job.name).toBeTruthy();
     expect(job['timeout-minutes']).toBeGreaterThan(0);
-    expect(job.permissions).toEqual({ contents: 'read' });
+    expect(job.permissions.contents).toBe('read');
+    expect(Object.values(job.permissions).every((permission) => permission === 'read')).toBe(true);
     expect(job).not.toHaveProperty('environment');
     for (const step of job.steps) {
       if (step.uses) expect(step.uses).toMatch(/@[a-f0-9]{40}$/);
@@ -47,15 +48,30 @@ test('quality CI checks locked dependencies, code, docs, build and local HTTP', 
   }
 });
 
-test('security CI fetches full history and runs the manual security hooks', () => {
-  const steps = ci.jobs.security.steps;
-  const checkout = steps.find((step) => step.uses?.startsWith('actions/checkout@'));
+test('security CI uses dedicated scanners without cloning Semgrep source hooks', () => {
+  expect(JSON.stringify(ci)).not.toContain('j178/prek-action');
+  const gitleaks = ci.jobs.gitleaks;
+  expect(gitleaks.permissions).toEqual({ contents: 'read', 'pull-requests': 'read' });
+  const checkout = gitleaks.steps.find((step) => step.uses?.startsWith('actions/checkout@'));
   expect(checkout.with['fetch-depth']).toBe(0);
-  const action = steps.find((step) => step.uses?.startsWith('j178/prek-action@'));
-  expect(action.with['extra-args']).toBe('--all-files --hook-stage manual');
-  expect(action.with.cache).toBe(false);
-  expect(String(action.with['prek-version'])).toMatch(/^\d+\.\d+\.\d+$/);
+  const action = gitleaks.steps.find((step) => step.uses?.startsWith('gitleaks/gitleaks-action@'));
+  expect(action.env.GITHUB_TOKEN).toBe('${{ github.token }}');
+  expect(action.env.GITLEAKS_ENABLE_COMMENTS).toBe(false);
+  expect(action.env.GITLEAKS_ENABLE_UPLOAD_ARTIFACT).toBe(false);
 
+  expect(ci.jobs.semgrep.container.image).toMatch(/^semgrep\/semgrep:[\d.]+@sha256:[a-f0-9]{64}$/);
+  expect(ci.jobs.semgrep.permissions).toEqual({ contents: 'read' });
+  expect(ci.jobs.semgrep.steps.some((step) => step.run === 'semgrep scan --config=auto --error')).toBe(true);
+
+  const zizmor = ci.jobs.zizmor;
+  expect(zizmor.permissions).toEqual({ contents: 'read', actions: 'read' });
+  const audit = zizmor.steps.find((step) => step.uses?.startsWith('zizmorcore/zizmor-action@'));
+  expect(audit.with.persona).toBe('pedantic');
+  expect(audit.with.annotations).toBe(true);
+  expect(audit.with['advanced-security']).toBe(false);
+});
+
+test('local security hooks retain staged scans and manual full-history scans', () => {
   const history = hooks.find((hook) => hook.alias === 'gitleaks-history');
   expect(history.entry).toBe('gitleaks git --redact --log-opts=--all');
   expect(history.stages).toEqual(['manual']);

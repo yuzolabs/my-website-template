@@ -70,22 +70,24 @@ Vite の `publicDir` に `dist` を設定しており、`cf build` を通じて 
 また、zizmor はデフォルトでオフライン実行されるため、一部の監査項目は対象外です。
 
 手動でファイル全体を確認するには `prek run --all-files` を実行してください。
-CI と同等の manual 段階を含めて手動再現する場合は `prek run --all-files --hook-stage manual` を実行します。
+ローカルの全履歴を検査する場合は `prek run --all-files --hook-stage manual` を実行します。これは CI の再現コマンドではなく、ローカル全履歴の検査です。
 新設した `gitleaks-history` エイリアス（`gitleaks git --redact --log-opts=--all`）は、ローカルに取得済みの全 ref 履歴に限って検査します。
 
 `.gitattributes` ではテキストを `text=auto eol=lf`、Windows コマンドスクリプト（`.cmd`、`.bat`）を `crlf` に指定しています。
 なお、`no-commit-to-branch` フックはローカル環境向けであり、GitHub 側のブランチ保護ではありません。
-必要に応じて Quality checks や Security checks を必須にする保護設定は、リポジトリ管理者が別途 GitHub 上で行います。
+必須チェックには Quality checks、Gitleaks、Semgrep、zizmor を推奨します。ブランチ保護の設定は、リポジトリ管理者が別途 GitHub 上で行います。
 自動マージや GitHub 側の保護設定は本テンプレートに含まれていません。
 
 ## CI と依存関係の更新
 
 `.github/workflows/ci.yml` は、`main` 宛 PR や `main` push、手動実行を契機に動作します。
-Quality checks と Security checks の 2 ジョブを実行します。
-CI は `contents: read` 権限のみで動作し、secrets や GitHub Environment は使用しません。
+旧来の Security checks（prek-action）を廃止します。Quality checks、Gitleaks、Semgrep、zizmor の 4 つの独立ジョブを実行します。
+CI は追加のリポジトリ secrets や GitHub Environment を必要としません。GitHub が自動発行するトークンを利用し、Cloudflare の認証情報は使用しません。
 
-- Quality checks: `bun install --frozen-lockfile`、`typecheck`、`lint:docs`、`test`、`build`、`check:staging` を実行します。ローカル Workers 環境での検証のみであり、リモートへの公開は行いません。
-- Security checks: `fetch-depth: 0` で全履歴を取得し、prek 0.5.2 上で `--all-files --hook-stage manual` を実行します。一般検査に加えて、取得済み全 ref 履歴を対象とした Gitleaks、Semgrep、zizmor を実行します。
+- Quality checks: `bun install --frozen-lockfile` を実行します。続けて `typecheck`、`lint:docs`、`test`、`build`、`check:staging` を実行します。ローカル Workers 環境での検証のみであり、リモートへの公開は行いません。権限は `contents: read` のみです。
+- Gitleaks: `gitleaks/gitleaks-action` v3 を使用します。`actions/checkout` で `fetch-depth: 0` を指定します。PR 実行時は Action が判定したコミット範囲などを検査します。自動発行の `github.token` を利用し、権限は `contents: read` と `pull-requests: read` を付与します。PR コメントや成果物のアップロードは無効化しています。個人所有（本リポジトリの `owner.type` は `User` と確認済み）ではライセンス不要です。Organization で再利用する場合は、公式 README に基づき別途 `GITLEAKS_LICENSE` の設定が必要です。
+- Semgrep: 公式の `1.177.0` コンテナ（digest 固定）で `semgrep scan --config=auto --error` を実行します。権限は `contents: read` のみです。
+- zizmor: 公式 Action で zizmor `1.30.1` を実行します。`pedantic`、`annotations: true`、`advanced-security: false` を指定します。権限は `contents: read` および `actions: read` を付与し、オンライン監査を有効化しています。
 
 依存関係の更新には Dependabot と Bun の遅延設定を利用します。
 
