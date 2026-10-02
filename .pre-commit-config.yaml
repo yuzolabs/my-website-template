@@ -1,3 +1,5 @@
+default_stages: [pre-commit, manual]
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
@@ -18,6 +20,13 @@ repos:
     rev: 83d9cd684c87d95d656c1458ef04895a7f1cbd8e # frozen: v8.30.1
     hooks:
       - id: gitleaks
+        stages: [pre-commit]
+      - id: gitleaks
+        alias: gitleaks-history
+        name: Detect secrets in Git history
+        always_run: true
+        entry: gitleaks git --redact --log-opts=--all
+        stages: [manual]
 
   - repo: https://github.com/semgrep/semgrep
     rev: e279a884ad6f16b050de690bdfdc26e921c364dc # frozen: v1.177.0

@@ -63,20 +63,29 @@ Vite の `publicDir` に `dist` を設定しており、`cf build` を通じて 
 [prek](https://github.com/j178/prek) をインストールした後、`prek install` で Git フックを設定します。
 
 コミット前に YAML、JSON、TOML、行末空白、末尾改行、秘密鍵を検査します。
-`no-commit-to-branch` により、pre-commit 時に `main` ブランチへの直接コミットを禁止します。
+`no-commit-to-branch` により、pre-commit 時に `main` ブランチへの直接コミットを禁止します（CI や manual 段階では対象外です）。
 さらに Gitleaks（シークレット検出）、Semgrep（SAST）、zizmor（GitHub Actions 等の静的解析）を実行します。
+通常のコミット前フックにおける Gitleaks はステージ済み差分を検査します。
 各ツールは初回の hook 環境構築で取得され、Semgrep の auto ルール取得にはネットワーク接続が必要です。
 また、zizmor はデフォルトでオフライン実行されるため、一部の監査項目は対象外です。
 
 手動でファイル全体を確認するには `prek run --all-files` を実行してください。
-ただし Gitleaks 公式 hook はステージ済み差分を検査するため、全履歴の検査にはなりません。
-本設定はローカル hook の追加のみであり、CI スキャンは未導入です。
+CI と同等の manual 段階を含めて手動再現する場合は `prek run --all-files --hook-stage manual` を実行します。
+新設した `gitleaks-history` エイリアス（`gitleaks git --redact --log-opts=--all`）は、ローカルに取得済みの全 ref 履歴に限って検査します。
 
 `.gitattributes` ではテキストを `text=auto eol=lf`、Windows コマンドスクリプト（`.cmd`、`.bat`）を `crlf` に指定しています。
 なお、`no-commit-to-branch` フックはローカル環境向けであり、GitHub 側のブランチ保護ではありません。
+必要に応じて Quality checks や Security checks を必須にする保護設定は、リポジトリ管理者が別途 GitHub 上で行います。
 自動マージや GitHub 側の保護設定は本テンプレートに含まれていません。
 
-## 依存関係の更新
+## CI と依存関係の更新
+
+`.github/workflows/ci.yml` は、`main` 宛 PR や `main` push、手動実行を契機に動作します。
+Quality checks と Security checks の 2 ジョブを実行します。
+CI は `contents: read` 権限のみで動作し、secrets や GitHub Environment は使用しません。
+
+- Quality checks: `bun install --frozen-lockfile`、`typecheck`、`lint:docs`、`test`、`build`、`check:staging` を実行します。ローカル Workers 環境での検証のみであり、リモートへの公開は行いません。
+- Security checks: `fetch-depth: 0` で全履歴を取得し、prek 0.5.2 上で `--all-files --hook-stage manual` を実行します。一般検査に加えて、取得済み全 ref 履歴を対象とした Gitleaks、Semgrep、zizmor を実行します。
 
 依存関係の更新には Dependabot と Bun の遅延設定を利用します。
 
