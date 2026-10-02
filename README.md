@@ -62,7 +62,7 @@ Vite の `publicDir` に `dist` を設定しており、`cf build` を通じて 
 
 [prek](https://github.com/j178/prek) をインストールした後、`prek install` で Git フックを設定します。
 
-コミット前に YAML・JSON・行末・末尾改行・秘密鍵を検査します。
+コミット前に YAML、JSON、TOML、行末空白、末尾改行、秘密鍵を検査します。
 さらに Gitleaks（シークレット検出）、Semgrep（SAST）、zizmor（GitHub Actions 等の静的解析）を実行します。
 各ツールは初回の hook 環境構築で取得され、Semgrep の auto ルール取得にはネットワーク接続が必要です。
 また、zizmor はデフォルトでオフライン実行されるため、一部の監査項目は対象外です。
@@ -70,6 +70,12 @@ Vite の `publicDir` に `dist` を設定しており、`cf build` を通じて 
 手動でファイル全体を確認するには `prek run --all-files` を実行してください。
 ただし Gitleaks 公式 hook はステージ済み差分を検査するため、全履歴の検査にはなりません。
 本設定はローカル hook の追加のみであり、CI スキャンは未導入です。
+
+## 依存関係の更新
+
+依存関係の更新には Bun の遅延設定を利用します。
+
+- Bun: `bunfig.toml` で `minimumReleaseAge = 604800`（7日）を設定しています。これは新しいバージョン解決時のフィルターであり、既存の `bun.lock` を再審査するものではありません。詳細は [Bun 公式ドキュメント](https://bun.sh/docs/pm/cli/install) を参照してください。
 
 ## Cloudflare staging
 
