@@ -41,6 +41,7 @@ staging は公開 URL です。`X-Robots-Tag: noindex, nofollow` は検索エン
 bun install --frozen-lockfile
 bun run typecheck
 bun run lint:docs
+bun run lint:design
 bun run test
 bun run build
 bun run check:staging

@@ -27,3 +27,11 @@ Cloudflare Workers 等のデプロイ設定を変更する場合は、既存設�
 例: `docs: 開発手順を追加`。
 
 検証フックを無効化するオプションは使いません。
+
+## デザイン
+
+UI を作るとき、または変えるときは、[Frontend design](.agents/skills/frontend-design/SKILL.md) と [デザインメモ](docs/design.md) を参照します。見た目の定型は `bun run lint:design` で検査します。
+
+不要な補足ラベルや説明文を足さず、レイアウトで伝えます。
+
+> Avoid unnecessary secondary labels and descriptions. Let the layout do the explaining.

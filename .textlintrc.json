@@ -1,4 +1,5 @@
 {
+  "plugins": ["html"],
   "rules": {
     "preset-ja-technical-writing": {
       "no-mix-dearu-desumasu": {

@@ -16,12 +16,13 @@ AI エージェント向けの作業手順と、Cloudflare Workers Static Assets
 動作環境として Bun 1.3.6 に加えて Node >=22.18.0 が必要です。Bun 上では `cf` の設定読み込みが未対応であるため、スクリプトから明示的に `node node_modules/.bin/cf` を呼び出します。
 
 1. テンプレート設定を有効にした GitHub リポジトリの **Use this template** から新しいリポジトリを作成します。
-2. `site/index.html` を編集し、必要な画像や CSS は `site/` に配置します。
+2. `site/index.html` を編集し、必要な画像や CSS は `site/` に配置します。日本語の折り返しは `site/base.css` です。
 3. 次のコマンドで依存関係を導入し、検証とローカル配信を確認します。
 
    ```bash
    bun install --frozen-lockfile
    bun run lint:docs
+   bun run lint:design
    bun run typecheck
    bun run test
    bun run build
@@ -45,7 +46,8 @@ Vite の `publicDir` に `dist` を設定しており、`cf build` を通じて 
 - `bun run deploy:staging`: target を検証した上で、`cf deploy --prebuilt --mode staging` により検証済み成果物をアップロードします。
 - `bun run typecheck`: TypeScript の型を検査します。
 - `bun run test`: 単体テストを実行します。
-- `bun run lint:docs`: textlint でドキュメントを検査します。
+- `bun run lint:docs`: textlint でドキュメントと、`site/` の HTML にある日本語を検査します。
+- `bun run lint:design`: `site/` の HTML と CSS にある、定型的な AI 風の見た目や文言を検出します。意図した使用は `design-lint.config.json` か `design-lint-allow` コメントで許可します。
 
 ## AI コーディング
 
@@ -56,9 +58,11 @@ Vite の `publicDir` に `dist` を設定しており、`cf build` を通じて 
 - [Cloudflare Workers](.agents/skills/cloudflare-workers/SKILL.md): Cloudflare Workers（`cf` CLI）の構成と Workers Static Assets の扱い。
 - [Staging deployment](.agents/skills/staging-deployment/SKILL.md): staging への安全な公開と検証。
 
+サイトごとの配色、書体、レイアウトは [デザインメモ](docs/design.md) に記入します。目玉にする要素も同じメモへ書きます。
+
 ## 文書とコミット前の検証
 
-`bun run lint:docs` は README、AGENTS.md、`docs/` の日本語 Markdown を textlint で検査します。英語の Skills とサイトの HTML は対象外です。
+`bun run lint:docs` は README、AGENTS.md、`docs/` の日本語 Markdown を textlint で検査します。英語の Skills は対象外です。`site/` の HTML に含まれる日本語は、同じ textlint 設定で検査します。
 
 [prek](https://github.com/j178/prek) をインストールした後、`prek install` で Git フックを設定します。
 
@@ -85,7 +89,7 @@ Vite の `publicDir` に `dist` を設定しており、`cf build` を通じて 
 Quality checks と Workers smoke test は独立して並列に実行されます。
 CI は追加のリポジトリ secrets や GitHub Environment を必要としません。GitHub が自動発行するトークンを利用し、Cloudflare の認証情報は使用しません。
 
-- Quality checks: `bun install --frozen-lockfile` を実行します。続けて `typecheck`、`lint:docs`、`test`、`build` を実行します。権限は `contents: read` のみです。
+- Quality checks: `bun install --frozen-lockfile` を実行します。続けて `typecheck`、`lint:docs`、`lint:design` を実行します。その後に `test` と `build` を実行します。権限は `contents: read` のみです。
 - Workers smoke test: Node 22.18.0 と Bun 1.3.6 の環境で動作します。`bun install --frozen-lockfile` と `bun run check:staging` を実行します。Quality checks とは独立して並列に動作します。権限は `contents: read` のみで secrets は不要であり、ローカル Workers 環境での検証のみを行います。起動判定は Vite のログ文字列ではなく、ループバック HTTP 応答で行います。起動、各リクエスト、終了待機のそれぞれにタイムアウトを設定します。失敗時には末尾の標準出力・標準エラー出力の診断ログを含めます。HTTP 200 応答、メインコンテンツ、`noindex`、`deployment.json` のコミット、存在しないパスの 404 応答の検証を維持します。
 - Gitleaks: `gitleaks/gitleaks-action` v3 を使用します。`actions/checkout` で `fetch-depth: 0` を指定します。PR 実行時は Action が判定したコミット範囲などを検査します。自動発行の `github.token` を利用し、権限は `contents: read` と `pull-requests: read` を付与します。PR コメントや成果物のアップロードは無効化しています。個人所有（本リポジトリの `owner.type` は `User` と確認済み）ではライセンス不要です。Organization で再利用する場合は、公式 README に基づき別途 `GITLEAKS_LICENSE` の設定が必要です。
 - Semgrep: 公式の `1.177.0` コンテナ（digest 固定）で `semgrep scan --config=auto --error` を実行します。権限は `contents: read` のみです。

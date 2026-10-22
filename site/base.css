@@ -1,0 +1,8 @@
+/*
+ * 日本語を語句の境界で折り返す。
+ * 未対応のブラウザは auto-phrase を無視し、直前の normal を使う。
+ */
+html {
+  word-break: normal;
+  word-break: auto-phrase;
+}
