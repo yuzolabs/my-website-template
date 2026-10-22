@@ -236,6 +236,22 @@ test('comments, config, and file allows suppress intentional use', async () => {
   expect(byFile[0].rule).toBe('vocabulary');
 });
 
+test('allow globs match nested paths', async () => {
+  const findings = await lint({
+    'nested/index.html': '<h1>🚀 One</h1>\n',
+  }, {
+    allow: [{ rule: 'emoji', path: 'site/**/*.html' }],
+  });
+  expect(findings).toEqual([]);
+});
+
+test('spaced or cased end tags still bound style and script', async () => {
+  const findings = await lint({
+    'index.html': '<STYLE> .hero { background: linear-gradient(#667eea, #764ba2); } </STYLE > <script>delve</script><p>Home</p>\n',
+  });
+  expect(rules(findings)).toEqual(['gradient']);
+});
+
 test('invalid allow directives and config fail closed', async () => {
   const findings = await lint({
     'index.html': '<!-- design-lint-allow-next: not-a-rule -->\n<h1>🚀 One</h1>\n',

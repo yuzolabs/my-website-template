@@ -153,19 +153,51 @@ function messageFor(rule, snippet) {
   return `${labels[rule] ?? rule}: ${shown}`;
 }
 
-function matchPath(pattern, relPath) {
-  const file = relPath.replaceAll('\\', '/');
-  let source = '^';
-  const normalized = pattern.replaceAll('\\', '/');
-  for (let i = 0; i < normalized.length; i += 1) {
-    if (normalized[i] === '*' && normalized[i + 1] === '*') {
-      source += '.*';
+function globTokens(pattern) {
+  const tokens = [];
+  let literal = '';
+  const flush = () => {
+    if (literal === '') return;
+    tokens.push({ kind: 'literal', value: literal });
+    literal = '';
+  };
+  for (let i = 0; i < pattern.length; i += 1) {
+    if (pattern[i] === '*' && pattern[i + 1] === '*') {
+      flush();
+      tokens.push({ kind: 'any' });
       i += 1;
       continue;
     }
-    source += normalized[i] === '*' ? '[^/]*' : escapeRegExp(normalized[i]);
+    if (pattern[i] === '*') {
+      flush();
+      tokens.push({ kind: 'segment' });
+      continue;
+    }
+    literal += pattern[i];
   }
-  return new RegExp(`${source}$`).test(file);
+  flush();
+  return tokens;
+}
+
+function matchGlob(tokens, file, tokenIndex, fileIndex) {
+  if (tokenIndex === tokens.length) return fileIndex === file.length;
+  const token = tokens[tokenIndex];
+  if (token.kind === 'literal') {
+    if (!file.startsWith(token.value, fileIndex)) return false;
+    return matchGlob(tokens, file, tokenIndex + 1, fileIndex + token.value.length);
+  }
+  const crossSlash = token.kind === 'any';
+  for (let end = fileIndex; end <= file.length; end += 1) {
+    if (!crossSlash && file.slice(fileIndex, end).includes('/')) break;
+    if (matchGlob(tokens, file, tokenIndex + 1, end)) return true;
+  }
+  return false;
+}
+
+function matchPath(pattern, relPath) {
+  const file = relPath.replaceAll('\\', '/');
+  const normalized = pattern.replaceAll('\\', '/');
+  return matchGlob(globTokens(normalized), file, 0, 0);
 }
 
 function loadAllowEntries(config) {
@@ -381,8 +413,9 @@ function parseOklchColor(token) {
   const body = token.replace(/^oklch\(/i, '').replace(/\)$/, '').trim();
   const match = body.match(/^(\d+(?:\.\d+)?%?)\s+(\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)(?:deg)?/i);
   if (!match) return null;
-  let lightness = Number(match[1].replace('%', ''));
-  if (match[1].endsWith('%')) lightness /= 100;
+  const hasPercent = match[1].endsWith('%');
+  let lightness = Number(hasPercent ? match[1].slice(0, -1) : match[1]);
+  if (hasPercent) lightness /= 100;
   const chroma = Number(match[2]);
   return familyFromHsl(Number(match[3]), chroma >= 0.08 ? 1 : 0, lightness);
 }
@@ -731,6 +764,24 @@ function attributeValueOffset(raw, value) {
   return bare >= 0 ? bare : 0;
 }
 
+function findClosingTag(html, from, name) {
+  const marker = `</${name.toLowerCase()}`;
+  for (let index = from; index <= html.length - marker.length; index += 1) {
+    let matched = true;
+    for (let offset = 0; offset < marker.length; offset += 1) {
+      if (html[index + offset].toLowerCase() !== marker[offset]) {
+        matched = false;
+        break;
+      }
+    }
+    if (!matched) continue;
+    let cursor = index + marker.length;
+    while (cursor < html.length && /\s/.test(html[cursor])) cursor += 1;
+    if (html[cursor] === '>') return { index, end: cursor + 1 };
+  }
+  return null;
+}
+
 function tokenize(html) {
   const tokens = [];
   let i = 0;
@@ -767,12 +818,12 @@ function tokenize(html) {
       });
       i = tag.end;
       if ((tag.name === 'style' || tag.name === 'script') && !tag.selfClosing) {
-        const closer = new RegExp(`</${tag.name}\\s*>`, 'i').exec(html.slice(i));
-        const bodyEnd = closer ? i + closer.index : html.length;
+        const closer = findClosingTag(html, i, tag.name);
+        const bodyEnd = closer ? closer.index : html.length;
         if (tag.name === 'style') {
           tokens.push({ type: 'style', start: i, end: bodyEnd, css: html.slice(i, bodyEnd) });
         }
-        const closeEnd = closer ? bodyEnd + closer[0].length : bodyEnd;
+        const closeEnd = closer ? closer.end : bodyEnd;
         tokens.push({ type: 'close', start: closer ? bodyEnd : closeEnd, end: closeEnd, name: tag.name });
         i = closeEnd;
       }
