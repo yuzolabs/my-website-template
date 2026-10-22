@@ -40,6 +40,7 @@ test('quality CI checks locked dependencies, code, docs and build independently 
     'bun install --frozen-lockfile',
     'bun run typecheck',
     'bun run lint:docs',
+    'bun run lint:design',
     'bun run test',
     'bun run build',
   ]) {
@@ -47,6 +48,14 @@ test('quality CI checks locked dependencies, code, docs and build independently 
   }
   expect(commands).not.toContain('bun run check:staging');
   expect(ci.jobs.quality).not.toHaveProperty('needs');
+});
+
+test('deploy workflow lints design before publishing', () => {
+  const deploy = Bun.YAML.parse(readRepositoryFile('.github/workflows/deploy-staging.yml'));
+  const commands = deploy.jobs.deploy.steps.flatMap((step) => step.run ? [step.run] : []);
+  expect(commands).toContain('bun run lint:design');
+  expect(commands.indexOf('bun run lint:design')).toBeGreaterThan(commands.indexOf('bun run lint:docs'));
+  expect(commands.indexOf('bun run lint:design')).toBeLessThan(commands.indexOf('bun run check:staging'));
 });
 
 test('Workers smoke test is a separate local-only job with matching runtimes', () => {
