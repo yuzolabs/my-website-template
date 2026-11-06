@@ -29,7 +29,7 @@ repos:
         stages: [manual]
 
   - repo: https://github.com/semgrep/semgrep
-    rev: 2f122b2feb38cc06272b1dde5b482e85eaf3adad # frozen: v1.178.0
+    rev: 4fe07d805dd2a4b64fed486e95136923f08648d0 # frozen: v1.183.0
     hooks:
       - id: semgrep
         args: ['--config', 'auto', '--error']
